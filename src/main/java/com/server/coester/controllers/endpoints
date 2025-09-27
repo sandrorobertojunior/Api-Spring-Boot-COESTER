@@ -1,0 +1,22 @@
+✅ POST /api/lotes - Criar lote
+✅ GET /api/lotes - Listar lotes
+✅ GET /api/lotes/{id} - Detalhes do lote
+✅ PUT /api/lotes/{id} - Atualizar lote
+✅ POST /api/lotes/{id}/medicoes - Adicionar medição
+✅ PATCH /api/lotes/{id}/concluir - Concluir lote
+
+Endpoints disponíveis:
+
+POST /api/tipos-peca - Criar tipo de peça
+
+GET /api/tipos-peca - Listar todos
+
+GET /api/tipos-peca/{id} - Obter por ID
+
+PUT /api/tipos-peca/{id} - Atualizar
+
+DELETE /api/tipos-peca/{id} - Excluir
+
+GET /api/tipos-peca/com-lotes - Tipos em uso
+
+GET /api/tipos-peca/estatisticas/uso - Estatísticas
