@@ -8,5 +8,6 @@ public record DashboardResponse(
         Long lotesEmAndamento,
         Long lotesConcluidos,
         Double taxaAprovacaoGeral,
+        Double tempoMedioMedicaoMinutos,
         List<LoteResumidoResponse> lotesRecentes
 ) {}

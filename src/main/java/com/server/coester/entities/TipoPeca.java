@@ -12,7 +12,7 @@ public class TipoPeca {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = false)
     private String nome; // "Parafuso M8", "Engrenagem 80mm"
 
     @Column(length = 500)

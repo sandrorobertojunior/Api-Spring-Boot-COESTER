@@ -7,19 +7,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.Collections;
 
-//s
+// O filtro deve ser usado após a autenticação (Basic)
 public class CustomAuthFilter extends OncePerRequestFilter {
 
-    private final UsuarioService usuarioService;
+    // ✅ CORREÇÃO: Usamos a interface do Spring Security
+    private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
-    public CustomAuthFilter(UsuarioService usuarioService, PasswordEncoder passwordEncoder) {
-        this.usuarioService = usuarioService;
+    // ✅ CORREÇÃO: O construtor recebe a interface
+    public CustomAuthFilter(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+        this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -31,42 +36,50 @@ public class CustomAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Basic ")) {
-            try {
-                // Extrai o token (remove "Basic ")
-                String base64Credentials = authHeader.substring(6);
+        // Permite que requisições sem o cabeçalho "Basic" prossigam (para o .permitAll() funcionar)
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-                // Decodifica Base64
-                byte[] decodedBytes = java.util.Base64.getDecoder().decode(base64Credentials);
-                String credentials = new String(decodedBytes);
+        try {
+            // 1. Extrai e decodifica o Basic Auth
+            String base64Credentials = authHeader.substring(6);
+            String credentials = new String(Base64.getDecoder().decode(base64Credentials));
 
-                // Separa email e senha
-                String[] parts = credentials.split(":", 2);
-                if (parts.length == 2) {
-                    String email = parts[0];
-                    String password = parts[1];
-
-                    // Usa o mesmo método do seu login para validar
-                    boolean isValid = usuarioService.login(email, password).isPresent();
-
-                    if (isValid) {
-                        // Cria a autenticação no Spring Security
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        email,
-                                        null,
-                                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                                );
-
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    } else {
-                        // Credenciais inválidas - não define autenticação
-                        System.out.println("Credenciais inválidas para: " + email);
-                    }
-                }
-            } catch (Exception e) {
-                System.out.println("Erro ao processar token: " + e.getMessage());
+            String[] parts = credentials.split(":", 2);
+            if (parts.length != 2) {
+                throw new IllegalArgumentException("Formato de credenciais Basic inválido.");
             }
+
+            String email = parts[0];
+            String rawPassword = parts[1]; // Senha em formato de texto simples
+
+            // 2. Carrega o UserDetails (usuário e senha hasheada)
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            // 3. Verifica a senha usando o PasswordEncoder
+            if (passwordEncoder.matches(rawPassword, userDetails.getPassword())) {
+
+                // 4. Cria o objeto de autenticação
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, // Principal (o objeto UserDetails)
+                                null,        // Credenciais (null após validação)
+                                userDetails.getAuthorities() // Autoridades/Roles
+                        );
+
+                // 5. Define a autenticação no contexto de segurança
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                System.out.println("Usuário autenticado: " + email);
+            } else {
+                System.out.println("Senha inválida para: " + email);
+                // O fluxo de segurança padrão lidará com a falha (geralmente 401 Unauthorized)
+            }
+
+        } catch (Exception e) {
+            System.err.println("Erro durante a autenticação Basic: " + e.getMessage());
+            // A exceção fará com que o request siga e seja bloqueado pelo .anyRequest().authenticated()
         }
 
         filterChain.doFilter(request, response);

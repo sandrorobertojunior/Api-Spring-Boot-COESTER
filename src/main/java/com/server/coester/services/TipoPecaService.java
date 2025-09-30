@@ -8,6 +8,7 @@ import com.server.coester.dtos.TipoPecaResponse;
 import com.server.coester.entities.TipoPeca;
 import com.server.coester.repositories.TipoPecaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -22,13 +23,10 @@ public class TipoPecaService {
     private ObjectMapper objectMapper;
 
     public TipoPecaResponse criarTipoPeca(CriarTipoPecaRequest request) {
-        if (tipoPecaRepository.existsByNome(request.nome())) {
-            throw new RuntimeException("Tipo de peça já existe");
-        }
-
         TipoPeca tipoPeca = new TipoPeca();
         tipoPeca.setNome(request.nome());
         tipoPeca.setDescricao(request.descricao());
+        System.out.println("peça tal"+request.dimensoes());
         tipoPeca.setMetadadosCotas(convertDimensoesToJson(request.dimensoes()));
 
         TipoPeca saved = tipoPecaRepository.save(tipoPeca);
@@ -68,22 +66,26 @@ public class TipoPecaService {
                 .toList();
     }
 
-    // CORREÇÃO: Este método deve receber o DTO, não a entidade
     public TipoPecaResponse atualizarTipoPeca(Long id, CriarTipoPecaRequest request) {
+        // 1. Encontra a entidade existente.
+        // Lança exceção se não for encontrada (com uma mensagem clara).
         TipoPeca tipoPeca = tipoPecaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo de peça não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Tipo de peça com ID " + id + " não encontrado."));
 
-        // Verificar se novo nome já existe (exceto para o próprio registro)
-        if (!tipoPeca.getNome().equals(request.nome()) &&
-                tipoPecaRepository.existsByNome(request.nome())) {
-            throw new RuntimeException("Já existe outro tipo de peça com este nome");
-        }
-
+        // 2. Atualiza os campos da entidade com os dados do DTO de requisição.
         tipoPeca.setNome(request.nome());
         tipoPeca.setDescricao(request.descricao());
+
+        // Preservando a lógica de conversão do JSON.
+        // Atenção: O backend espera uma String (JSON), mas o frontend manda List<DimensaoRequest>
+        // Se o seu request DTO usa List, a conversão para a String JSON deve ocorrer aqui ou no DTO.
+        // Ajustado para refletir a nova tipagem do frontend (List<DimensaoRequest> -> String JSON).
         tipoPeca.setMetadadosCotas(convertDimensoesToJson(request.dimensoes()));
 
+        // 3. Salva a entidade atualizada. O JPA executa um UPDATE.
         TipoPeca updated = tipoPecaRepository.save(tipoPeca);
+
+        // 4. Retorna a resposta convertida.
         return toTipoPecaResponse(updated);
     }
 

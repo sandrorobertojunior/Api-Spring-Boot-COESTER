@@ -1,13 +1,19 @@
 package com.server.coester.controllers;
 
 import com.server.coester.dtos.*;
+import com.server.coester.entities.Lote;
 import com.server.coester.services.LoteService;
+
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
+
+import org.springframework.security.access.prepost.PreAuthorize; // Import necessário
 
 @RestController
 @RequestMapping("/api/lotes")
@@ -17,20 +23,31 @@ public class LoteController {
     private LoteService loteService;
 
     // CREATE - Criar novo lote
+    // RESTRITO: APENAS ADMINISTRADOR
     @PostMapping
     public ResponseEntity<LoteResponse> criarLote(@Valid @RequestBody CriarLoteRequest request) {
         try {
             LoteResponse response = loteService.criarLote(request);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(null); // ← Retornar body nulo ou mensagem
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
-    // READ - Listar todos os lotes (resumido)
+
+    // ⭐ NOVO ENDPOINT: READ - Listar todos os lotes (Apenas Administrador)
+    @GetMapping("/todos")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    public List<LoteResumidoResponse> listarTodosOsLotes() {
+        // Assumindo que LoteService tem um método para listar todos
+        return loteService.listarTodosOsLotes();
+    }
+
+    // READ - Listar lotes do usuário logado
+    // ALTERAÇÃO: Lista apenas os lotes criados pelo usuário autenticado
     @GetMapping
-    public List<LoteResumidoResponse> listarLotes() {
-        return loteService.listarLotesResumido();
+    public List<LoteResumidoResponse> listarLotesDoUsuario() {
+        return loteService.listarLotesDoUsuario();
     }
 
     // READ - Obter lote específico com detalhes
@@ -67,37 +84,51 @@ public class LoteController {
     }
 
     // DELETE - Excluir lote
+    // RESTRITO: APENAS ADMINISTRADOR
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluirLote(@PathVariable Long id) {
         try {
             loteService.excluirLote(id);
             return ResponseEntity.noContent().build();
+        } catch (AccessDeniedException e) {
+            // Se o service lançar AccessDenied (para não-admin/não-dono), retorna 403 Forbidden
+            return ResponseEntity.status(403).build();
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            // Se a exclusão falhar por ter medições (lógica interna), retorna 400 Bad Request
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    // OPERAÇÕES DE MEDIÇÕES
+    // OPERAÇÕES DE MEDIÇÕES (Mantido sem restrição de acesso por ser operação do colaborador)
 
-    // Adicionar medição ao lote - MELHORADO
+    // Adicionar medição ao lote
     @PostMapping("/{loteId}/medicoes")
     public ResponseEntity<LoteResponse> adicionarMedicao(
             @PathVariable Long loteId,
-            @Valid @RequestBody AdicionarMedicaoRequestParameter request) {
+            @Valid @RequestBody AdicionarMedicaoRequestParameter request) { // Usamos o DTO sem pecaNumero
         try {
-            // Simplificado - usar apenas o loteId do path
-            AdicionarMedicaoRequest requestComLoteId = new AdicionarMedicaoRequest(
-                    loteId, // ← Usa do path, ignora do request body se existir
-                    request.pecaNumero(),
+
+            // 1. Cria a requisição APENAS com o que é necessário (loteId, dimensoes, observacoes)
+            AdicionarMedicaoRequest requestSemPecaNumero = new AdicionarMedicaoRequest(
+                    loteId,
                     request.dimensoes(),
                     request.observacoes()
             );
 
-            LoteResponse response = loteService.adicionarMedicao(requestComLoteId);
+            // 2. O Service agora fará o cálculo do pecaNumero
+            LoteResponse response = loteService.adicionarMedicao(requestSemPecaNumero);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            // Mudar para logar a exceção ou retornar uma mensagem mais clara
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PatchMapping("/{id}/recomecar")
+    public ResponseEntity<LoteResponse> recomecarLote(@PathVariable Long id) {
+        LoteResponse response = loteService.recomecarLote(id);
+        return ResponseEntity.ok(response);
     }
 
     // Listar medições de um lote
@@ -124,16 +155,23 @@ public class LoteController {
         }
     }
 
-    // OPERAÇÕES DE STATUS
+    // OPERAÇÕES DE STATUS (PatchMapping mantido sem restrição)
 
     // Marcar lote como concluído
     @PatchMapping("/{id}/concluir")
-    public ResponseEntity<LoteResponse> concluirLote(@PathVariable Long id) {
+// O ResponseEntity agora retorna um Boolean, representando o resultado da aprovação
+    public ResponseEntity<Boolean> concluirLote(@PathVariable Long id) {
         try {
-            LoteResponse response = loteService.concluirLote(id);
-            return ResponseEntity.ok(response);
+            // Chama o service que agora retorna TRUE (aprovado) ou FALSE (reprovado)
+            Boolean aprovado = loteService.concluirLote(id);
+
+            // Retorna 200 OK com o corpo sendo o resultado da aprovação (true ou false)
+            return ResponseEntity.ok(aprovado);
+
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            // Se houver RuntimeException (ex: falta de amostras),
+            // retorna 400 Bad Request e inclui a mensagem de erro no corpo
+            return ResponseEntity.badRequest().header("Error-Message", e.getMessage()).build();
         }
     }
 
@@ -150,16 +188,19 @@ public class LoteController {
 
     // DASHBOARD E ESTATÍSTICAS
 
+    // ALTERAÇÃO: Usa o novo DashboardResponse
     @GetMapping("/dashboard")
     public DashboardResponse obterDashboard() {
+        // Assume que o service irá buscar os dados do dashboard do usuário logado
         return loteService.obterDashboard();
     }
 
     @GetMapping("/estatisticas/periodo")
-    public ResponseEntity<List<Object[]>> obterEstatisticasPorPeriodo( // ← ResponseEntity
-                                                                       @RequestParam String dataInicio,
-                                                                       @RequestParam String dataFim) {
+    public ResponseEntity<List<Object[]>> obterEstatisticasPorPeriodo(
+            @RequestParam String dataInicio,
+            @RequestParam String dataFim) {
         try {
+            // Assume que o service irá buscar os dados do usuário logado
             List<Object[]> estatisticas = loteService.getEstatisticasPorPeriodo(dataInicio, dataFim);
             return ResponseEntity.ok(estatisticas);
         } catch (RuntimeException e) {

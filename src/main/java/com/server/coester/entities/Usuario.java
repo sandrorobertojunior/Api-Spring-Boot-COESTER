@@ -45,9 +45,14 @@ public class Usuario {
     @Column(name = "array_roles", columnDefinition = "text[]")
     private List<String> arrayRoles = new ArrayList<>();
 
+    public List<String> getRoles() {
+        return this.arrayRoles;
+    }
+
     public Usuario() {
         this.arrayRoles.add("COLABORADOR");
     }
+
 
     public Usuario(String username, String email, String password) {
         this();

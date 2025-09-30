@@ -23,6 +23,7 @@ public interface LoteRepository extends JpaRepository<Lote, Long> {
     // Verificar se código do lote existe
     boolean existsByCodigoLote(String codigoLote);
 
+    List<Lote> findByUsuarioOrderByDataCriacaoDesc(Usuario usuario);
     // Buscar lotes por status
     List<Lote> findByStatus(String status);
 
@@ -57,29 +58,20 @@ public interface LoteRepository extends JpaRepository<Lote, Long> {
     @Query("SELECT l FROM Lote l WHERE LOWER(l.descricao) LIKE LOWER(CONCAT('%', :texto, '%'))")
     List<Lote> findByDescricaoContainingIgnoreCase(@Param("texto") String texto);
 
-    // Buscar lotes com quantidade de peças maior que
-    List<Lote> findByQuantidadePecasGreaterThan(Integer quantidade);
 
-    // Buscar lotes por usuário e status
-    List<Lote> findByUsuarioAndStatus(Usuario usuario, String status);
+    @Query(value = """
+        SELECT
+            COUNT(l.id),
+            COALESCE(SUM(CASE WHEN l.status = 'EM_ANDAMENTO' THEN 1L ELSE 0L END), 0L),
+            COALESCE(SUM(CASE WHEN l.status = 'CONCLUIDO' THEN 1L ELSE 0L END), 0L),
+            COALESCE(AVG(CASE WHEN l.status = 'CONCLUIDO' THEN l.taxaAprovacao ELSE NULL END), 0.0)
+        FROM Lote l
+        WHERE l.usuario = :usuario
+        """) // Remova a linha "GROUP BY l.usuario"
+    List<Object[]> getDashboardEstatisticasByUsuario(@Param("usuario") Usuario usuario);
 
-    // Contar lotes por status
-    @Query("SELECT l.status, COUNT(l) FROM Lote l GROUP BY l.status")
-    List<Object[]> countLotesPorStatus();
-
-    // Dashboard - estatísticas resumidas
-    @Query("SELECT " +
-            "COUNT(l) as totalLotes, " +
-            "SUM(CASE WHEN l.status = 'EM_ANDAMENTO' THEN 1 ELSE 0 END) as lotesEmAndamento, " +
-            "SUM(CASE WHEN l.status = 'CONCLUIDO' THEN 1 ELSE 0 END) as lotesConcluidos, " +
-            "AVG(CASE WHEN l.status = 'CONCLUIDO' THEN l.taxaAprovacao ELSE NULL END) as taxaAprovacaoMedia " +
-            "FROM Lote l")
-    Object[] getDashboardEstatisticas();
-
-    // Buscar lotes recentes para dashboard
-    @Query("SELECT l FROM Lote l ORDER BY l.dataCriacao DESC LIMIT 5")
-    List<Lote> findLotesRecentes();
-
+    // 3. Lotes recentes por usuário
+    List<Lote> findLotesRecentesByUsuario(Usuario usuario);
 
 }
 

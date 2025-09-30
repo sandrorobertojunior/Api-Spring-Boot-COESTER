@@ -11,3 +11,4 @@ public record CotaMetadata(
         @Positive Double tolerancia,
         @Positive Double valorPadrao
 ) {}
+

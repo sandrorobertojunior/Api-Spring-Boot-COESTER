@@ -1,5 +1,6 @@
 package com.server.coester.repositories;
 
+import com.server.coester.dtos.UsuarioDto;
 import com.server.coester.entities.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +30,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Buscar usuários que tenham qualquer uma das roles
     @Query(value = "SELECT * FROM usuarios WHERE array_roles && ARRAY[:roles]", nativeQuery = true)
     List<Usuario> findByAnyRole(@Param("roles") List<String> roles);
+    List<UsuarioDto> findAllByOrderByUsernameAsc();
 }

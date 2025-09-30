@@ -10,7 +10,7 @@ public record LoteResponse(
         String descricao,
         TipoPecaResponse tipoPeca,
         Integer quantidadePecas,
-        Integer quantidadeAmostras,
+        Integer quantidadeAmostrasDesejada,
         Double porcentagemAmostragem,
         Integer pecasAprovadas,
         Integer pecasReprovadas,

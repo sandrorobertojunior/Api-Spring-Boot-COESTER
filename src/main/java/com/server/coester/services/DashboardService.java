@@ -2,6 +2,7 @@ package com.server.coester.services;
 
 import com.server.coester.dtos.DashboardResponse;
 import com.server.coester.dtos.LoteResumidoResponse;
+import com.server.coester.dtos.TipoPecaResponse;
 import com.server.coester.entities.Lote;
 import com.server.coester.repositories.LoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,33 +18,24 @@ public class DashboardService {
     @Autowired
     private LoteService loteService;
 
-    public DashboardResponse getDashboard() {
-        Object[] estatisticas = loteRepository.getDashboardEstatisticas();
-        List<Lote> lotesRecentes = loteRepository.findLotesRecentes();
 
-        return new DashboardResponse(
-                ((Number) estatisticas[0]).longValue(),     // totalLotes
-                ((Number) estatisticas[1]).longValue(),     // lotesEmAndamento
-                ((Number) estatisticas[2]).longValue(),     // lotesConcluidos
-                (Double) estatisticas[3],                   // taxaAprovacaoMedia
-                lotesRecentes.stream()
-                        .map(loteService::toLoteResumidoResponse)
-                        .toList()
-        );
-    }
-
-    // Método alternativo se quiser manter tudo no DashboardService
     private LoteResumidoResponse toLoteResumidoResponse(Lote lote) {
+        // Primeiro, criamos o DTO do TipoPeca, como fizemos anteriormente
+        TipoPecaResponse tipoPecaDto = new TipoPecaResponse(lote.getTipoPeca());
+
         return new LoteResumidoResponse(
-                lote.getId(),
-                lote.getCodigoLote(),
-                lote.getDescricao(),
-                lote.getTipoPeca().getNome(),
-                lote.getQuantidadePecas(),
-                lote.getQuantidadeAmostras(),
-                lote.getTaxaAprovacao(),
-                lote.getStatus(),
-                lote.getDataCriacao()
+                lote.getId(),                         // 1. id
+                lote.getCodigoLote(),                 // 2. codigoLote
+                lote.getDescricao(),                  // 3. descricao
+                tipoPecaDto,                          // 4. tipoPeca (CORRIGIDO: agora é um objeto)
+                lote.getQuantidadePecas(),            // 5. quantidadePecas
+                lote.getQuantidadeAmostras(),         // 6. quantidadeAmostrasDesejada
+                lote.getPorcentagemAmostragem(),      // 7. porcentagemAmostragem (ADICIONADO)
+                lote.getPecasAprovadas(),             // 8. pecasAprovadas (ADICIONADO)
+                lote.getPecasReprovadas(),            // 9. pecasReprovadas (ADICIONADO)
+                lote.getTaxaAprovacao(),              // 10. taxaAprovacao (POSIÇÃO CORRIGIDA)
+                lote.getStatus().toString(),          // 11. status (POSIÇÃO CORRIGIDA, use .toString() se for um Enum)
+                lote.getDataCriacao()                 // 12. dataCriacao (POSIÇÃO CORRIGIDA)
         );
     }
 }
