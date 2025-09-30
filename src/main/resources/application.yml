@@ -3,8 +3,8 @@ spring:
     name: api-login
   datasource:
     url: jdbc:postgresql://localhost:5432/coesterdb
-    username: ${DB_USERNAME} #admin
-    password: ${DB_PASSWORD}
+    username: admin
+    password: admin
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
