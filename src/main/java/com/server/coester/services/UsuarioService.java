@@ -2,6 +2,7 @@ package com.server.coester.services;
 
 
 import com.server.coester.dtos.UsuarioDto;
+import com.server.coester.dtos.UsuarioDtoResume;
 import com.server.coester.entities.Usuario;
 import com.server.coester.repositories.UsuarioRepository;
 import org.springframework.security.core.GrantedAuthority;
@@ -30,16 +31,17 @@ public class UsuarioService implements UserDetailsService {
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
-    public Usuario register(Usuario usuario) {
+    public Usuario register(UsuarioDtoResume usuario) {
 
         // Verifica se já existe email
-        if (usuarioRepository.findByEmail(usuario.getEmail()).isPresent()) {
+        if (usuarioRepository.findByEmail(usuario.email()).isPresent()) {
             throw new RuntimeException("Email já existe");
         }
-
+        System.out.println(usuario.role());
         // Criptografa a senha e salva
-        usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
-        return usuarioRepository.save(usuario);
+        Usuario usuarioFinal = new Usuario(usuario.username(), usuario.email(), passwordEncoder.encode(usuario.password()));
+        usuarioFinal.setRole(usuario.role());
+        return usuarioRepository.save(usuarioFinal);
     }
 
     public Optional<Usuario> login(String email, String senha) {

@@ -49,7 +49,7 @@ public class SecurityConfiguration {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Permite o seu frontend React/Next.js
-        configuration.setAllowedOrigins(List.of("http://localhost:3000","https://api-coester.sandroroberto.uk","https://sistema-de-medicao.sandroroberto.uk"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000","http://localhost:3001","https://api-coester.sandroroberto.uk","https://sistema-de-medicao.sandroroberto.uk"));
 
         // Métodos HTTP padrão que serão permitidos (GET, POST, PUT, DELETE, etc.)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

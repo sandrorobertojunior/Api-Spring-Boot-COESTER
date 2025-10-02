@@ -1,6 +1,7 @@
 package com.server.coester.repositories;
 
 import com.server.coester.dtos.UsuarioDto;
+import com.server.coester.dtos.UsuarioDtoResume;
 import com.server.coester.entities.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

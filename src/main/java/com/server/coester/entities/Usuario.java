@@ -50,7 +50,7 @@ public class Usuario {
     }
 
     public Usuario() {
-        this.arrayRoles.add("COLABORADOR");
+
     }
 
 
@@ -60,4 +60,9 @@ public class Usuario {
         this.email = email;
         this.password = password;
     }
+
+    public void setRole(String role) {
+        this.arrayRoles.add(role);
+    }
+
 }
